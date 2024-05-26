@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<!-- saved from url=(0309)https://s2.paa-reporting-advertising.amazon/paa/rf_module_registration.html?srcName=CS&adId=578978129051614740&is3p=true&campaignId=590277252406835014&ep=paa%2Cara&creativeId=587940562505987359&bidId=YjCb9GKuorhKSsnSPUqRnA&advertiserId=589634601389633646&clickDestnUrl=https%3A%2F%2Fwww.fellowes.com%2Fus%2Fen -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=windows-1252"><input type="hidden" id="_w_simile" data-inspect-config="3"><script type="text/javascript" src="chrome-extension://dbjbempljhcmhlfpfacalomonjpalpko/scripts/inspector.js"></script></head><body>
+<script>
+    const errors = [];
+
+    const pushErrorMessage = (place) => (err) => {
+        errors.push({
+            name: err.name,
+            message: err.message,
+            place
+        });
+    };
+
+    const doNothing = () => {
+    };
+
+    async function registerAndExecuteRF(input) {
+        await window.sharedStorage.worklet.addModule('rf_module.js');
+        await window.sharedStorage.run('rf-module', {
+            data: input,
+            privateAggregationConfig: {contextId: input.debugKey}
+        });
+    }
+
+    function parseInputParameters() {
+        const params = new URLSearchParams(location.search);
+        return {
+            creativeId: params.get('c') || params.get('creative_id') || params.get('creativeId'),
+            adId: params.get('a') || params.get('ad_id') || params.get('adId'),
+            campaignId: params.get('ca') || params.get('campaign_id') || params.get('campaignId'),
+            advertiserId: params.get('av') || params.get('advertiser_id') || params.get('advertiserId'),
+            is3P: params.get('istp') || params.get('is_3p') || params.get('is3p'),
+            debugKey: params.get('d') || params.get('request_bidid') || params.get('bidId')
+        };
+    }
+
+    async function executeForChrome() {
+        const input = parseInputParameters();
+        const isOffsite = checkIsOffsite(input);
+        const browserContext = await getBrowserContext();
+        if (isOffsite && browserContext.hasSharedStorage && browserContext.isSupportedBrowserVersion) {
+            await registerAndExecuteRF(input).catch(pushErrorMessage('registerAndExecuteRF'));
+        }
+
+        registerEventContext(browserContext, input, isOffsite).catch(doNothing);
+    }
+
+    function checkIsOffsite(input) {
+        if (input.is3P === false || input.is3P === 'false') {
+            return false;
+        } else if (input.is3P === true || input.is3P === 'true') {
+            return true;
+        } else {
+            pushErrorMessage('checkIsOffsite')({
+                name: 'UnexpectedIs3P',
+                message: input.is3P
+            });
+            return true;
+        }
+    }
+
+    async function isSupportedBrowser(userAgentData) {
+        try {
+            const ua = await userAgentData.getHighEntropyValues(['fullVersionList'])
+            for (const brandAndVersion of ua.fullVersionList) {
+                if (brandAndVersion.brand === 'Google Chrome') {
+                    const versionList = brandAndVersion.version.split('.').map(Number);
+                    const version = versionList[0];
+                    const branch = versionList[2];
+                    const patch = versionList[3];
+                    if ((version === 117 && branch === 5938 && patch >= 149) ||
+                        (version === 118 && branch === 5993 && patch >= 32) ||
+                        version >= 119) {
+                        return true;
+                    }
+                }
+            }
+        } catch (err) {
+            pushErrorMessage('isSupportedBrowser')(err);
+        }
+
+        return false;
+    }
+
+    async function getBrowserContext() {
+      const place = 'getBrowserContext';
+      const hasSharedStorage = safeCheck(place, () => { return !!window.sharedStorage; });
+      const hasUserAgentData = safeCheck(place, () => { return !!navigator && !!navigator.userAgentData; });
+      const isSupportedBrowserVersion = hasUserAgentData && await isSupportedBrowser(navigator.userAgentData);
+      return { hasSharedStorage, hasUserAgentData, isSupportedBrowserVersion };
+    }
+
+    function safeCheck(place, checkFunction) {
+        try {
+            return checkFunction();
+        } catch (err) {
+            pushErrorMessage(place)(err);
+            return false;
+        }
+    }
+
+    async function registerEventContext(browserContext, input, isOffsite) {
+        await window.fetch('/event-context/register', {
+            method: 'POST',
+            body: JSON.stringify({
+                has_shared_storage: browserContext.hasSharedStorage,
+                has_user_agent_data: browserContext.hasUserAgentData,
+                is_supported_browser_version: browserContext.isSupportedBrowserVersion,
+                is_offsite: isOffsite,
+                campaign_id: input.campaignId,
+                ad_id: input.adId,
+                debug_key: input.debugKey,
+                errors
+            })
+        });
+    }
+
+    executeForChrome().catch(doNothing);
+</script>
+
+</body></html>
