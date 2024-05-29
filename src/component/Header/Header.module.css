@@ -85,7 +85,8 @@
     color: white;
 }
 .order__container p{
-    font-size: 10px;
+    font-size: 14px;
+    width: 90px;
 }
 .language{
     width: 100%;
@@ -98,7 +99,14 @@
     color: white;
 }
 .language img{
-    width: 20%;
+    width: 50%;
+    height: 25px;
+}
+.signin_out span{
+    display: flex;
+    font-size: 12px;
+    width: 90px;
+
 }
 .cart{
     position: relative;

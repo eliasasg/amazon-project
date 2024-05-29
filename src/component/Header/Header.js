@@ -17,17 +17,16 @@ function Header() {
     const totalItem = basket?.reduce((amount, item)=>{
         return item.amount + amount
     },0)
-    fetch('https://ipapi.co/8.8.8.8/json/')
-.then(function(response) {
-  response.json().then(jsonData => {
-    setLocation(jsonData);
-  });
-})
-.catch(function(error) {
-  console.log(error)
-});
 
-    // console.log(state.length);
+    fetch('https://ipapi.co/8.8.8.8/country/')
+    .then(function(response) {
+      response.text().then(txt => {
+        console.log(txt);
+      });
+    })
+    .catch(function(error) {
+      console.log(error)
+    });
 
 
 
